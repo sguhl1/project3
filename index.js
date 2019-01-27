@@ -1,40 +1,59 @@
-const express = require("express")
-const app = express()
-const passport = require("passport")
-const morgan = require("morgan")
-const cookieParser = require("cookie-parser")
-const bodyParser = require("body-parser")
-const session = require("express-session")
+const express = require('express');
+const path = require('path');
+const bodyParser = require('body-parser');
+const session = require('express-session');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const errorHandler = require('errorhandler');
 
-const serverPort = require("./server/config/config").serverPort
+//Configure mongoose's promise to global promise
+mongoose.promise = global.Promise;
 
-const port = process.env.PORT || serverPort
+//Configure isProduction variable
+const isProduction = process.env.NODE_ENV === 'production';
 
-const errorHandlingMiddleware = require("./server/middleware/error")
+//Initiate our app
+const app = express();
 
-app.use(morgan("dev"))
-app.use(cookieParser())
-app.use(bodyParser.json())
-app.use(bodyParser.urlencoded({ extended: true }))
+//Configure our app
+app.use(cors());
+app.use(require('morgan')('dev'));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({ secret: 'passport-tutorial', cookie: { maxAge: 60000 }, resave: false, saveUninitialized: false }));
 
-app.use(session({ secret: "verySecret", cookie: { maxAge: 3600000 } }))
+if(!isProduction) {
+  app.use(errorHandler());
+}
 
-app.use(express.static("./server/static/"))
-app.use(express.static("./client/dist/"))
+//Configure Mongoose
+mongoose.connect('mongodb://localhost/passport-tutorial');
+mongoose.set('debug', true);
 
-require("./server/passport/passport")(passport)
+//Error handlers & middlewares
+if(!isProduction) {
+  app.use((err, req, res) => {
+    res.status(err.status || 500);
 
-app.use(passport.initialize())
-app.use(passport.session())
+    res.json({
+      errors: {
+        message: err.message,
+        error: err,
+      },
+    });
+  });
+}
 
-const authRoutes = require("./server/routes/auth")
-app.use("/auth", authRoutes)
+app.use((err, req, res) => {
+  res.status(err.status || 500);
 
-const apiRoutes = require("./server/routes/api")
-app.use("/api", apiRoutes)
+  res.json({
+    errors: {
+      message: err.message,
+      error: {},
+    },
+  });
+});
 
-app.use(errorHandlingMiddleware())
-
-app.listen(port, () => {
-  console.log("The magic happens on port " + port)
-})
+app.listen(8000, () => console.log('Server running on http://localhost:8000/'));
