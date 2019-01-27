@@ -9,8 +9,6 @@ const errorHandler = require('errorhandler');
 //Configure mongoose's promise to global promise
 mongoose.promise = global.Promise;
 
-require('./models/Users');
-
 //Configure isProduction variable
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -32,6 +30,9 @@ if(!isProduction) {
 //Configure Mongoose
 mongoose.connect('mongodb://localhost/passport-tutorial');
 mongoose.set('debug', true);
+
+//models and routes
+require('./models/Users');
 
 //Error handlers & middlewares
 if(!isProduction) {
